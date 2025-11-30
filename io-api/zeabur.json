@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm install",
-  "startCommand": "npm start",
+  "startCommand": "node server.js",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nodejs",
