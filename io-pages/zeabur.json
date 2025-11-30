@@ -1,0 +1,13 @@
+{
+  "buildCommand": "npm install && npm run build",
+  "startCommand": "npx vite preview --host 0.0.0.0 --port 3000",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "outputDirectory": "dist",
+  "rootDirectory": ".",
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
+

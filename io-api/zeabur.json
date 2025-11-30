@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm install",
+  "startCommand": "npm start",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": null,
+  "outputDirectory": ".",
+  "rootDirectory": ".",
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
