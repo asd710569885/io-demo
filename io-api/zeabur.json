@@ -3,7 +3,7 @@
   "startCommand": "npm start",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "framework": null,
+  "framework": "nodejs",
   "outputDirectory": ".",
   "rootDirectory": ".",
   "env": {
