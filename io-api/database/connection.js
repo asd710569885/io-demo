@@ -44,11 +44,40 @@ const pool = mysql.createPool({
 // 测试数据库连接
 pool.getConnection()
   .then(connection => {
-    console.log('数据库连接成功');
+    console.log('✅ 数据库连接成功');
+    console.log('连接信息:', {
+      host: connection.config.host,
+      port: connection.config.port,
+      user: connection.config.user,
+      database: connection.config.database
+    });
     connection.release();
   })
   .catch(err => {
-    console.error('数据库连接失败:', err.message);
+    console.error('❌ 数据库连接失败');
+    console.error('错误类型:', err.code);
+    console.error('错误消息:', err.message);
+    console.error('错误详情:', {
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      user: process.env.DB_USER,
+      database: process.env.DB_NAME,
+      ssl: process.env.DB_SSL
+    });
+    
+    // 提供具体的解决建议
+    if (err.code === 'ER_ACCESS_DENIED_ERROR') {
+      console.error('\n💡 解决建议:');
+      console.error('1. 检查 DB_PASSWORD 是否正确');
+      console.error('2. 检查 MySQL 用户权限是否允许从当前 IP 连接');
+      console.error('3. 如果使用 Zeabur 自动注入，确认 MySQL 服务已正确关联');
+      console.error('4. 尝试使用 Zeabur 提供的内部连接地址');
+    } else if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
+      console.error('\n💡 解决建议:');
+      console.error('1. 检查 DB_HOST 是否正确');
+      console.error('2. 检查 DB_PORT 是否正确');
+      console.error('3. 确认 MySQL 服务正在运行');
+    }
   });
 
 export default pool;
