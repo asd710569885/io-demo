@@ -3,6 +3,27 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// 调试：打印数据库连接配置
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT) || 3306,
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD ? '***已设置***' : '❌ 未设置',
+  database: process.env.DB_NAME || 'zeabur',
+  ssl: process.env.DB_SSL === 'true' ? {
+    rejectUnauthorized: false
+  } : false,
+};
+
+console.log('=== 数据库连接配置 ===');
+console.log('DB_HOST:', dbConfig.host);
+console.log('DB_PORT:', dbConfig.port);
+console.log('DB_USER:', dbConfig.user);
+console.log('DB_PASSWORD:', dbConfig.password);
+console.log('DB_NAME:', dbConfig.database);
+console.log('DB_SSL:', process.env.DB_SSL);
+console.log('==================');
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT) || 3306,
