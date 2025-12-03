@@ -245,19 +245,31 @@ router.delete('/:id', async (req, res) => {
       [id]
     );
     
-    if (records[0].count > 0) {
+    const recordCount = records[0].count;
+    
+    // 如果员工是在职状态且有物资领用记录，不允许删除
+    if (employee.status === 'active' && recordCount > 0) {
       await connection.rollback();
       return res.status(400).json({ 
-        message: `无法删除该人员，该人员有 ${records[0].count} 条物资领用记录。请先删除相关记录或将其标记为离职状态。` 
+        message: `无法删除在职人员，该人员有 ${recordCount} 条物资领用记录。请先将其标记为离职状态，然后再删除。` 
       });
+    }
+    
+    // 如果是离职员工，先删除相关的物资领用记录
+    if (employee.status === 'inactive' && recordCount > 0) {
+      await connection.query('DELETE FROM material_records WHERE employee_id = ?', [id]);
+      console.log(`已删除离职员工 ${employee.name} 的 ${recordCount} 条物资领用记录`);
     }
 
     // 删除人员
     await connection.query('DELETE FROM employees WHERE id = ?', [id]);
-    await logOperation(req, 'delete', 'employees', `删除人员: ${employee.name}`);
+    await logOperation(req, 'delete', 'employees', `删除人员: ${employee.name}${recordCount > 0 ? `（同时删除了 ${recordCount} 条物资领用记录）` : ''}`);
     
     await connection.commit();
-    res.json({ message: '人员删除成功' });
+    res.json({ 
+      message: '人员删除成功',
+      deletedRecords: recordCount > 0 ? recordCount : 0
+    });
   } catch (error) {
     await connection.rollback();
     console.error('删除人员错误:', error);
@@ -270,7 +282,7 @@ router.delete('/:id', async (req, res) => {
     // 处理外键约束错误
     if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === '23000') {
       return res.status(400).json({ 
-        message: '无法删除该人员，该人员存在关联数据（如物资领用记录）。请先处理相关数据或将其标记为离职状态。' 
+        message: '无法删除该人员，该人员存在关联数据（如物资领用记录）。请先将其标记为离职状态，然后再删除。' 
       });
     }
     

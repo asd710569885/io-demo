@@ -109,22 +109,6 @@ router.get('/statistics', async (req, res) => {
   }
 });
 
-// 清理旧日志（30天前）
-router.delete('/clean', async (req, res) => {
-  try {
-    const [result] = await pool.query(
-      'DELETE FROM operation_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)'
-    );
-    res.json({ 
-      message: '清理成功', 
-      deletedCount: result.affectedRows 
-    });
-  } catch (error) {
-    console.error('清理旧日志错误:', error);
-    res.status(500).json({ message: '服务器错误' });
-  }
-});
-
 export default router;
 
 

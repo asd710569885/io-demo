@@ -97,10 +97,6 @@
         <el-form-item>
           <el-button type="primary" @click="handleSearch">搜索</el-button>
           <el-button @click="handleReset">重置</el-button>
-          <el-button type="danger" @click="handleCleanOldLogs">
-            <el-icon><Delete /></el-icon>
-            清理旧日志
-          </el-button>
         </el-form-item>
       </el-form>
 
@@ -287,30 +283,6 @@ const handleReset = () => {
   fetchStatistics();
 };
 
-// 清理旧日志
-const handleCleanOldLogs = async () => {
-  try {
-    await ElMessageBox.confirm(
-      '确定要清理30天前的旧日志吗？此操作不可恢复！',
-      '提示',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    );
-    
-    await api.delete('/logs/clean');
-    ElMessage.success('清理成功');
-    fetchLogs();
-    fetchStatistics();
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('清理旧日志失败:', error);
-      ElMessage.error('清理失败');
-    }
-  }
-};
 
 // 获取统计信息
 const fetchStatistics = async () => {

@@ -15,7 +15,8 @@
     "migrate-insurance": "node scripts/migrate-insurance-fields.js",
     "migrate-fix-employee-id": "node scripts/migrate-fix-employee-id.js",
     "fix-mysql-user": "node scripts/fix-mysql-user.js",
-    "fix-zeabur-mysql-user": "node scripts/fix-zeabur-mysql-user.js"
+    "fix-zeabur-mysql-user": "node scripts/fix-zeabur-mysql-user.js",
+    "clean-logs": "node scripts/clean-all-logs.js"
   },
   "dependencies": {
     "express": "^4.18.2",
