@@ -20,7 +20,13 @@ console.log('DB_HOST:', process.env.DB_HOST);
 console.log('==================');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Zeabur 可能使用 PORT 或 WEB_PORT 环境变量
+const PORT = process.env.PORT || process.env.WEB_PORT || 3000;
+
+console.log('🔍 端口配置检查:');
+console.log('  - process.env.PORT:', process.env.PORT);
+console.log('  - process.env.WEB_PORT:', process.env.WEB_PORT);
+console.log('  - 最终使用端口:', PORT);
 
 // 中间件 - CORS 配置（必须在所有中间件之前）
 const allowedOrigins = process.env.CORS_ORIGIN 
@@ -64,23 +70,47 @@ app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 请求日志
+// 请求日志（放在路由之前，确保所有请求都被记录）
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - Origin: ${req.headers.origin || '无'}`);
+  const timestamp = new Date().toISOString();
+  console.log(`📥 [${timestamp}] ${req.method} ${req.path}`);
+  console.log(`   Origin: ${req.headers.origin || '无'}`);
+  console.log(`   IP: ${req.ip || req.connection.remoteAddress}`);
+  
+  // 记录响应完成
+  res.on('finish', () => {
+    console.log(`📤 [${timestamp}] ${req.method} ${req.path} - ${res.statusCode}`);
+  });
+  
   next();
 });
 
-// 路由
+// 健康检查（放在最前面，确保即使其他路由有问题也能访问）
+app.get('/health', (req, res) => {
+  console.log('🏥 健康检查请求');
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    port: PORT,
+    uptime: process.uptime()
+  });
+});
+
+// 根路径
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'IO API Server',
+    status: 'running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API 路由
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/employees', employeesRoutes);
 app.use('/api/materials', materialsRoutes);
 app.use('/api/logs', logsRoutes);
-
-// 健康检查
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // CORS 测试端点
 app.get('/api/test-cors', (req, res) => {
@@ -108,10 +138,24 @@ app.use((err, req, res, next) => {
 });
 
 // 启动服务器 - 监听所有网络接口（Zeabur 需要）
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ 服务器运行在端口 ${PORT}`);
   console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
   console.log(`监听地址: 0.0.0.0:${PORT}`);
+  console.log(`服务器地址: http://0.0.0.0:${PORT}`);
+});
+
+// 监听服务器错误
+server.on('error', (err) => {
+  console.error('❌ 服务器错误:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`端口 ${PORT} 已被占用`);
+  }
+});
+
+// 监听连接
+server.on('connection', (socket) => {
+  console.log('🔌 新连接:', socket.remoteAddress, socket.remotePort);
 });
 
 // 捕获未处理的异常，防止服务器崩溃
