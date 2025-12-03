@@ -20,13 +20,19 @@ console.log('DB_HOST:', process.env.DB_HOST);
 console.log('==================');
 
 const app = express();
-// Zeabur 可能使用 PORT 或 WEB_PORT 环境变量
-const PORT = process.env.PORT || process.env.WEB_PORT || 3000;
+// Zeabur 使用 WEB_PORT 环境变量，这是代理期望应用监听的端口
+// 优先级：WEB_PORT > PORT > 3000
+const PORT = process.env.WEB_PORT || process.env.PORT || 3000;
 
 console.log('🔍 端口配置检查:');
 console.log('  - process.env.PORT:', process.env.PORT);
 console.log('  - process.env.WEB_PORT:', process.env.WEB_PORT);
 console.log('  - 最终使用端口:', PORT);
+if (process.env.WEB_PORT) {
+  console.log('  ✅ 使用 WEB_PORT（Zeabur 代理端口）');
+} else if (process.env.PORT) {
+  console.log('  ⚠️ 使用 PORT，但 Zeabur 可能期望 WEB_PORT');
+}
 
 // 中间件 - CORS 配置（必须在所有中间件之前）
 const allowedOrigins = process.env.CORS_ORIGIN 
