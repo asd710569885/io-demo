@@ -20,7 +20,7 @@ console.log('==================');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 中间件 - CORS 配置
+// 中间件 - CORS 配置（必须在所有中间件之前）
 const allowedOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
   : ['http://localhost:5173'];
@@ -30,9 +30,13 @@ console.log('允许的 CORS 来源:', allowedOrigins);
 const corsOptions = {
   origin: function (origin, callback) {
     // 允许没有 origin 的请求（如移动应用或 Postman）
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('⚠️ 请求没有 origin 头，允许通过');
+      return callback(null, true);
+    }
     
     if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('✅ CORS 允许的来源:', origin);
       callback(null, true);
     } else {
       console.warn('⚠️ CORS 阻止的来源:', origin);
@@ -47,16 +51,20 @@ const corsOptions = {
   preflightContinue: false,
   optionsSuccessStatus: 204
 };
+
+// 先应用 CORS 中间件
 app.use(cors(corsOptions));
 
-// 显式处理 OPTIONS 预检请求（确保 CORS 正常工作）
+// 显式处理所有 OPTIONS 预检请求（确保预检请求被正确处理）
 app.options('*', cors(corsOptions));
+
+// 其他中间件
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 请求日志
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - Origin: ${req.headers.origin || '无'}`);
   next();
 });
 
@@ -70,6 +78,15 @@ app.use('/api/logs', logsRoutes);
 // 健康检查
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// CORS 测试端点
+app.get('/api/test-cors', (req, res) => {
+  res.json({ 
+    message: 'CORS 测试成功',
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // 错误处理
