@@ -98,6 +98,9 @@ const handleDelete = async (row) => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除失败:', error);
+      // 显示服务器返回的错误消息
+      const errorMessage = error.response?.data?.message || error.message || '删除失败，请稍后重试';
+      ElMessage.error(errorMessage);
     }
   }
 };

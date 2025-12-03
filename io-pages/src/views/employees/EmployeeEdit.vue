@@ -42,14 +42,19 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="年龄" prop="age">
-                <el-input-number 
-                  v-model="form.age" 
-                  :min="1" 
-                  :max="150"
+              <el-form-item label="出生日期" prop="birthday">
+                <el-date-picker
+                  v-model="form.birthday"
+                  type="date"
+                  placeholder="请选择出生日期"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
                   style="width: 100%"
-                  placeholder="请输入年龄"
+                  @change="calculateAge"
                 />
+                <div v-if="form.age !== null" style="margin-top: 8px; color: #909399; font-size: 12px;">
+                  年龄：{{ form.age }} 岁
+                </div>
               </el-form-item>
             </el-col>
           </el-row>
@@ -78,9 +83,11 @@
           <el-form-item label="身份证号" prop="id_card">
             <el-input 
               v-model="form.id_card" 
-              placeholder="请输入身份证号"
+              placeholder="请输入18位身份证号"
               clearable
+              maxlength="18"
               style="max-width: 400px"
+              @input="handleIdCardInput"
             />
           </el-form-item>
 
@@ -339,7 +346,8 @@ const employee = ref(null);
 
 const form = reactive({
   name: '',
-  age: null,
+  birthday: null, // 出生日期
+  age: null, // 自动计算的年龄
   gender: '',
   id_card: '',
   position: '',
@@ -367,8 +375,101 @@ const form = reactive({
   status: 'active',
 });
 
+// 身份证号码验证函数
+const validateIdCard = (rule, value, callback) => {
+  if (!value) {
+    // 身份证号不是必填项，如果为空则通过验证
+    callback();
+    return;
+  }
+  
+  // 18位身份证号码正则表达式
+  const idCardRegex = /^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/;
+  
+  if (!idCardRegex.test(value)) {
+    callback(new Error('请输入正确的18位身份证号码'));
+    return;
+  }
+  
+  // 验证校验码
+  const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+  const checkCodes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
+  
+  let sum = 0;
+  for (let i = 0; i < 17; i++) {
+    sum += parseInt(value[i]) * weights[i];
+  }
+  
+  const checkCode = checkCodes[sum % 11];
+  const lastChar = value[17].toUpperCase();
+  
+  if (checkCode !== lastChar) {
+    callback(new Error('身份证号码校验码不正确'));
+    return;
+  }
+  
+  // 验证日期是否有效
+  const year = parseInt(value.substring(6, 10));
+  const month = parseInt(value.substring(10, 12));
+  const day = parseInt(value.substring(12, 14));
+  
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    callback(new Error('身份证号码中的日期无效'));
+    return;
+  }
+  
+  callback();
+};
+
 const rules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+  id_card: [
+    { validator: validateIdCard, trigger: 'blur' }
+  ],
+};
+
+// 处理身份证号输入，自动转换为大写，只允许数字和X
+const handleIdCardInput = (value) => {
+  if (!value) {
+    form.id_card = '';
+    return;
+  }
+  // 只保留数字和X，并转换为大写
+  form.id_card = value.replace(/[^0-9Xx]/g, '').toUpperCase();
+};
+
+// 根据出生日期计算年龄
+const calculateAge = (birthday) => {
+  if (!birthday) {
+    form.age = null;
+    return;
+  }
+  
+  const today = new Date();
+  const birthDate = new Date(birthday);
+  
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  // 如果还没过生日，年龄减1
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  form.age = age > 0 ? age : null;
+};
+
+// 根据年龄反推出生日期（用于编辑时初始化）
+const calculateBirthdayFromAge = (age) => {
+  if (!age || age <= 0) {
+    return null;
+  }
+  
+  const today = new Date();
+  const year = today.getFullYear() - age;
+  // 使用当前月份和日期，这样计算出的年龄会更准确
+  return `${year}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 };
 
 // 加载员工数据
@@ -386,9 +487,12 @@ const fetchEmployee = async () => {
     employee.value = data;
     
     // 填充表单数据
+    const age = data.age ? Number(data.age) : null;
     Object.assign(form, {
       ...data,
-      age: data.age ? Number(data.age) : null,
+      age: age,
+      // 如果有年龄，反推出出生日期（用于编辑）
+      birthday: age ? calculateBirthdayFromAge(age) : null,
       // 养老保险
       pension_company: data.pension_company ? Number(data.pension_company) : 0,
       pension_personal: data.pension_personal ? Number(data.pension_personal) : 0,
@@ -426,8 +530,9 @@ const handleSubmit = async () => {
     if (valid) {
       submitting.value = true;
       try {
-        // 提交所有表单数据，包括状态
-        await api.put(`/employees/${employee.value.id}`, form);
+        // 提交时，不包含 birthday 字段，只提交 age
+        const { birthday, ...updateData } = form;
+        await api.put(`/employees/${employee.value.id}`, updateData);
         ElMessage.success('更新成功');
         router.back();
       } catch (error) {

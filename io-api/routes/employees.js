@@ -223,23 +223,63 @@ router.put('/:id', async (req, res) => {
 
 // 删除人员
 router.delete('/:id', async (req, res) => {
+  const connection = await pool.getConnection();
+  
   try {
+    await connection.beginTransaction();
+    
     const { id } = req.params;
 
     // 检查人员是否存在
-    const [employees] = await pool.query('SELECT * FROM employees WHERE id = ?', [id]);
+    const [employees] = await connection.query('SELECT * FROM employees WHERE id = ?', [id]);
     if (employees.length === 0) {
+      await connection.rollback();
       return res.status(404).json({ message: '人员不存在' });
     }
 
     const employee = employees[0];
 
-    await pool.query('DELETE FROM employees WHERE id = ?', [id]);
+    // 检查是否有物资领用记录
+    const [records] = await connection.query(
+      'SELECT COUNT(*) as count FROM material_records WHERE employee_id = ?',
+      [id]
+    );
+    
+    if (records[0].count > 0) {
+      await connection.rollback();
+      return res.status(400).json({ 
+        message: `无法删除该人员，该人员有 ${records[0].count} 条物资领用记录。请先删除相关记录或将其标记为离职状态。` 
+      });
+    }
+
+    // 删除人员
+    await connection.query('DELETE FROM employees WHERE id = ?', [id]);
     await logOperation(req, 'delete', 'employees', `删除人员: ${employee.name}`);
+    
+    await connection.commit();
     res.json({ message: '人员删除成功' });
   } catch (error) {
+    await connection.rollback();
     console.error('删除人员错误:', error);
-    res.status(500).json({ message: '服务器错误' });
+    console.error('错误详情:', {
+      code: error.code,
+      message: error.message,
+      sqlState: error.sqlState
+    });
+    
+    // 处理外键约束错误
+    if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === '23000') {
+      return res.status(400).json({ 
+        message: '无法删除该人员，该人员存在关联数据（如物资领用记录）。请先处理相关数据或将其标记为离职状态。' 
+      });
+    }
+    
+    res.status(500).json({ 
+      message: '服务器错误',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    connection.release();
   }
 });
 
