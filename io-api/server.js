@@ -20,7 +20,7 @@ console.log('==================');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 中间件
+// 中间件 - CORS 配置
 const allowedOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
   : ['http://localhost:5173'];
@@ -35,16 +35,22 @@ const corsOptions = {
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.warn('CORS 阻止的来源:', origin);
+      console.warn('⚠️ CORS 阻止的来源:', origin);
+      console.warn('当前允许的来源:', allowedOrigins);
       callback(new Error('不允许的 CORS 来源'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
+
+// 显式处理 OPTIONS 预检请求（确保 CORS 正常工作）
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -69,6 +75,16 @@ app.get('/health', (req, res) => {
 // 错误处理
 app.use((err, req, res, next) => {
   console.error('错误:', err);
+  
+  // CORS 错误特殊处理
+  if (err.message === '不允许的 CORS 来源') {
+    return res.status(403).json({ 
+      message: 'CORS 错误: 不允许的来源',
+      origin: req.headers.origin,
+      allowedOrigins: allowedOrigins
+    });
+  }
+  
   res.status(500).json({ message: '服务器内部错误' });
 });
 
