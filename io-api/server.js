@@ -9,6 +9,8 @@ import logsRoutes from './routes/logs.js';
 
 dotenv.config();
 
+console.log('✅ 所有路由模块加载成功');
+
 // 启动时打印关键环境变量（用于调试）
 console.log('=== 环境变量检查 ===');
 console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -105,10 +107,23 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: '服务器内部错误' });
 });
 
-// 启动服务器
-app.listen(PORT, () => {
-  console.log(`服务器运行在端口 ${PORT}`);
+// 启动服务器 - 监听所有网络接口（Zeabur 需要）
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ 服务器运行在端口 ${PORT}`);
   console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`监听地址: 0.0.0.0:${PORT}`);
+});
+
+// 捕获未处理的异常，防止服务器崩溃
+process.on('uncaughtException', (err) => {
+  console.error('❌ 未捕获的异常:', err);
+  // 不要立即退出，让服务器继续运行
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ 未处理的 Promise 拒绝:', reason);
+  console.error('Promise:', promise);
+  // 不要立即退出，让服务器继续运行
 });
 
 
